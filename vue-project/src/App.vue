@@ -1,61 +1,84 @@
 <template>
-  <div id="app">
-  <textarea :value="input" @input="update"></textarea>
-  <div v-html="compiledMarkdown"></div>
+  <div id="app-demo">
+    <h1>Latest Vue.js Commits</h1>
+    <template v-for="branch in branches">
+      <input type="radio"
+        :id="branch"
+        :value="branch"
+        name="branch"
+        v-model="currentBranch">
+      <label :for="branch">{{ branch }}</label>
+    </template>
+    <p>vuejs/vue@{{ currentBranch }}</p>
+    <ul>
+      <li v-for="record in commits">
+        <a :href="record.html_url" target="_blank" class="commit">{{ record.sha.slice(0, 7) }}</a>
+        - <span class="message">{{ record.commit.message | truncate }}</span><br>
+        by <span class="author"><a :href="record.author.html_url" target="_blank">{{ record.commit.author.name }}</a></span>
+        at <span class="date">{{ record.commit.author.date | formatDate }}</span>
+      </li>
+    </ul>
   </div>
 </template>
 
 <script>
-import _ from 'lodash'
-import marked from 'marked'
+var apiURL = 'https://api.github.com/repos/vuejs/vue/commits?per_page=3&sha='
 export default {
+  name: 'app-demo',
   data () {
     return {
-        input: '# hello'
+      branches: ['master', 'dev'],
+      currentBranch: 'master',
+      commits: null
     }
   },
-  computed: {
-  compiledMarkdown: function () {
-    return marked(this.input, { sanitize: true })
-  }
+  created: function () {
+  this.fetchData()
+},
+
+watch: {
+  currentBranch: 'fetchData'
+},
+
+filters: {
+  truncate: function (v) {
+    var newline = v.indexOf('\n')
+    return newline > 0 ? v.slice(0, newline) : v
   },
-  methods: {
-  update: _.debounce(function (e) {
-    this.input = e.target.value
-  }, 300)
+  formatDate: function (v) {
+    return v.replace(/T|Z/g, ' ')
   }
+},
+
+methods: {
+  fetchData: function () {
+    var xhr = new XMLHttpRequest()
+    var self = this
+    xhr.open('GET', apiURL + self.currentBranch)
+    xhr.onload = function () {
+      self.commits = JSON.parse(xhr.responseText)
+      console.log(self.commits[0].html_url)
+    }
+    xhr.send()
+  }
+}
+
 }
 </script>
 
 <style>
-html, body, #app {
-  margin: 0;
-  height: 100%;
-  font-family: 'Helvetica Neue', Arial, sans-serif;
-  color: #333;
+#app-demo {
+  font-family: 'Helvetica', Arial, sans-serif;
 }
-
-textarea, #app div {
-  display: inline-block;
-  width: 49%;
-  height: 100%;
-  vertical-align: top;
-  box-sizing: border-box;
-  padding: 0 20px;
-}
-
-textarea {
-  border: none;
-  border-right: 1px solid #ccc;
-  resize: none;
-  outline: none;
-  background-color: #f6f6f6;
-  font-size: 14px;
-  font-family: 'Monaco', courier, monospace;
-  padding: 20px;
-}
-
-code {
+a {
+  text-decoration: none;
   color: #f66;
+}
+li {
+  line-height: 1.5em;
+  margin-bottom: 20px;
+}
+.author, .date {
+  font-weight: bold;
 }
 </style>
